@@ -69,6 +69,24 @@ CRITICAL RULES:
 3. For Visiting Cards, map the person's name to "hr_name" and their phone to "hr_phone".
 4. Return ONLY the JSON object. No conversation.`;
 
+const CARD_SYSTEM_INSTRUCTIONS = `Analyze this Registration Card or Visiting Card and return data ONLY in this JSON format:
+{
+  "name": "string",
+  "designation": "string",
+  "company_name": "string",
+  "email": "string",
+  "phone": "string",
+  "website": "string",
+  "address": "string",
+  "card_type": "Registration" | "Visiting"
+}
+
+CRITICAL RULES:
+1. Extract the person's name, their designation/role, and the company they represent.
+2. Ensure phone and email are captured accurately.
+3. Determine if it is a "Registration" card or a "Visiting" card.
+4. Return ONLY the JSON object. No conversation.`;
+
 // --- ROUTES ---
 
 // 1. Analyze Placement (Image or Text)
@@ -103,7 +121,7 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
 
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: analyzeContent }],
-      model: file ? "meta-llama/llama-4-scout-17b-16e-instruct" : "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
       temperature: 0.1,
       response_format: { type: "json_object" },
     });
@@ -120,11 +138,56 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
     `).run([id, imagePath, companyName, JSON.stringify(extraction)]);
 
     // Append to Google Sheets
-    await appendToSheet(extraction);
+    await appendToSheet(extraction, 'placement');
 
     res.json({ id, companyName, extraction, imagePath, sheetUrl: process.env.SHEET_VIEW_URL });
   } catch (error) {
     console.error("Analysis error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 1.1 Analyze Card (Registration or Visiting Card)
+app.post('/api/analyze-card', upload.single('file'), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "No card image provided" });
+
+    const id = uuidv4();
+    const buffer = fs.readFileSync(file.path);
+    const imagePath = `/uploads/${file.filename}`;
+
+    const analyzeContent = [
+      { type: "text", text: CARD_SYSTEM_INSTRUCTIONS },
+      {
+        type: "image_url",
+        image_url: { url: `data:${file.mimetype};base64,${buffer.toString("base64")}` },
+      },
+    ];
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: analyzeContent }],
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+    });
+
+    let content = completion.choices[0]?.message?.content || "{}";
+    content = content.replace(/```json\n?|```/g, "").trim();
+    const extraction = JSON.parse(content);
+
+    // Append to Google Sheets (Cards Sheet)
+    console.log("Extraction complete, sending to Google Sheets...");
+    await appendToSheet(extraction, 'card');
+
+    res.json({ 
+      id, 
+      extraction, 
+      imagePath, 
+      sheetUrl: process.env.SHEET_CARDS_VIEW_URL 
+    });
+  } catch (error) {
+    console.error("Card Analysis error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -220,3 +283,5 @@ app.post('/api/chat', async (req, res) => {
 app.listen(port, () => {
   console.log(`Backend running at http://localhost:${port}`);
 });
+
+// Restart trigger

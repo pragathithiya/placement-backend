@@ -15,9 +15,14 @@ async function appendToSheet(data, type = 'placement') {
     if (type === 'placement') {
       // Prepend a single quote to the phone number to force Google Sheets to treat it as text
       payload.hr_phone = data.hr_phone ? `'${data.hr_phone}` : '';
+      // Ensure location is always present
+      payload.location = data.location || '';
     } else {
-      // For cards, we might have different fields, but let's keep it generic or specific to card details
+      // For cards, we map phone and ensure address is clearly passed
       payload.phone = data.phone ? `'${data.phone}` : '';
+      // Some scripts might expect 'location' instead of 'address', so we provide both to be safe
+      payload.address = data.address || '';
+      payload.location = data.address || ''; 
     }
 
     console.log(`Attempting to append ${type} data to: ${webAppUrl}`);

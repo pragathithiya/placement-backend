@@ -84,8 +84,9 @@ const CARD_SYSTEM_INSTRUCTIONS = `Analyze this Registration Card or Visiting Car
 CRITICAL RULES:
 1. Extract the person's name, their designation/role, and the company they represent.
 2. Ensure phone and email are captured accurately.
-3. Determine if it is a "Registration" card or a "Visiting" card.
-4. Return ONLY the JSON object. No conversation.`;
+3. Capture the FULL address as found on the card. Do not omit street details or city names.
+4. Determine if it is a "Registration" card or a "Visiting" card.
+5. Return ONLY the JSON object. No conversation.`;
 
 // --- ROUTES ---
 

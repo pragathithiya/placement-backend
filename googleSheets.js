@@ -11,7 +11,17 @@ async function appendToSheet(data, type = 'placement') {
 
     // Construct the payload in the EXACT order of your Google Sheet columns
     const now = new Date();
-    const dateStr = now.toLocaleDateString('en-IN') + ' ' + now.toLocaleTimeString('en-IN');
+    // Use Intl.DateTimeFormat for reliable IST string
+    const dateStr = new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Kolkata'
+    }).format(now).replace(',', '');
     
     let payload = {};
 

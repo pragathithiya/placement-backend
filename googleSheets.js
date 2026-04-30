@@ -31,11 +31,13 @@ async function appendToSheet(data, type = 'placement') {
       body: JSON.stringify(payload),
     });
 
+    const responseText = await response.text();
+    console.log(`Google Sheets Response [${response.status}]:`, responseText);
+
     if (response.ok) {
       console.log(`Successfully appended ${type} data to Google Sheets via Web App`);
     } else {
-      const errorText = await response.text();
-      console.error(`Failed to append ${type} to Google Sheets:`, response.status, response.statusText, errorText);
+      console.error(`Failed to append ${type} to Google Sheets:`, response.status, response.statusText, responseText);
     }
   } catch (error) {
     console.error(`Error appending ${type} to Google Sheets:`, error);

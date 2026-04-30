@@ -151,19 +151,31 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
 app.post('/api/analyze-card', upload.single('file'), async (req, res) => {
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ error: "No card image provided" });
+    const rawText = req.body.text;
+
+    if (!file && !rawText) {
+      return res.status(400).json({ error: "No card image or text provided" });
+    }
 
     const id = uuidv4();
-    const buffer = fs.readFileSync(file.path);
-    const imagePath = `/uploads/${file.filename}`;
+    let imagePath = "";
+    let analyzeContent = [];
 
-    const analyzeContent = [
-      { type: "text", text: CARD_SYSTEM_INSTRUCTIONS },
-      {
-        type: "image_url",
-        image_url: { url: `data:${file.mimetype};base64,${buffer.toString("base64")}` },
-      },
-    ];
+    if (file) {
+      const buffer = fs.readFileSync(file.path);
+      imagePath = `/uploads/${file.filename}`;
+      analyzeContent = [
+        { type: "text", text: CARD_SYSTEM_INSTRUCTIONS },
+        {
+          type: "image_url",
+          image_url: { url: `data:${file.mimetype};base64,${buffer.toString("base64")}` },
+        },
+      ];
+    } else {
+      analyzeContent = [
+        { type: "text", text: `${CARD_SYSTEM_INSTRUCTIONS}\n\nAnalyze this card text:\n${rawText}` }
+      ];
+    }
 
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: analyzeContent }],
@@ -212,6 +224,10 @@ app.post('/api/placements', async (req, res) => {
       INSERT INTO placements (id, image_path, company_name, extracted_data)
       VALUES ($1, $2, $3, $4)
     `).run([id, "", company_name, JSON.stringify(extraction)]);
+
+    // Sync to Google Sheets for Manual Input
+    await appendToSheet(extraction, 'placement');
+
     res.json({ success: true, id });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -240,6 +256,10 @@ app.patch('/api/placements/:id', async (req, res) => {
     await db.prepare(`
       UPDATE placements SET company_name = $1, extracted_data = $2 WHERE id = $3
     `).run([company_name, JSON.stringify(extraction), id]);
+
+    // Sync to Google Sheets for Updates (Appends as a new record)
+    await appendToSheet(extraction, 'placement');
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

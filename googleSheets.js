@@ -9,20 +9,40 @@ async function appendToSheet(data, type = 'placement') {
       return;
     }
 
-    // Prepare payload
-    let payload = { ...data };
+    // Construct the payload in the EXACT order of your Google Sheet columns
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-IN') + ' ' + now.toLocaleTimeString('en-IN');
     
+    let payload = {};
+
     if (type === 'placement') {
-      // Prepend a single quote to the phone number to force Google Sheets to treat it as text
-      payload.hr_phone = data.hr_phone ? `'${data.hr_phone}` : '';
-      // Ensure location is always present
-      payload.location = data.location || '';
+      payload = {
+        "DATE": dateStr,
+        "COMPANY NAME": data.company_name || "",
+        "ROLE": data.job_role || "",
+        "LOCATION AND ADDRESS": data.location || "",
+        "DURATION": data.duration || "",
+        "STIPEND": data.stipend || "",
+        "SALARY": data.salary || "",
+        "MODE": data.mode || "",
+        "SKILLS": data.skills || "",
+        "HR NAME": data.hr_name || "",
+        "PHONE NUMBER": data.hr_phone ? `'${data.hr_phone}` : ""
+      };
     } else {
-      // For cards, we map phone and ensure address is clearly passed
-      payload.phone = data.phone ? `'${data.phone}` : '';
-      // Some scripts might expect 'location' instead of 'address', so we provide both to be safe
-      payload.address = data.address || '';
-      payload.location = data.address || ''; 
+      // ORDER FOR CARDS (MATCHING YOUR SCREENSHOT):
+      // A: DATE, B: NAME, C: DESIGNATION, D: COMPANY, E: EMAIL, F: PHONE NO, G: WEBSITE, H: ADDRESS, I: CARD TYPE
+      payload = {
+        "DATE": dateStr,
+        "NAME": data.name || "",
+        "DESIGNATION": data.designation || "",
+        "COMPANY": data.company_name || "",
+        "EMAIL": data.email || "",
+        "PHONE NO": data.phone ? `'${data.phone}` : "",
+        "WEBSITE": data.website || "",
+        "ADDRESS": data.address || "",
+        "CARD TYPE": data.card_type || ""
+      };
     }
 
     console.log(`Attempting to append ${type} data to: ${webAppUrl}`);

@@ -50,7 +50,7 @@ const SYSTEM_INSTRUCTIONS = `Analyze this Job Description or Visiting Card and r
   "salary": "string",
   "mode": "On-site" | "Remote" | "Hybrid" | "Work from Home",
   "benefits": "string",
-  "skills": "string",
+  "skills": "string (key technical skills required)",
   "hr_name": "string",
   "hr_phone": "string",
   "experience": "string",
@@ -189,15 +189,24 @@ app.post('/api/analyze-card', upload.single('file'), async (req, res) => {
     content = content.replace(/```json\n?|```/g, "").trim();
     const extraction = JSON.parse(content);
 
-    // Append to Google Sheets (Cards Sheet)
-    console.log("Extraction complete, sending to Google Sheets...");
-    await appendToSheet(extraction, 'card');
+    // Append to Google Sheets
+    console.log("Extraction complete, checking type...");
+    
+    // Smart Detection: If the user scanned a Job Poster in the Card route
+    const isJob = extraction.card_type?.toLowerCase().includes('job') || 
+                  extraction.card_type?.toLowerCase().includes('placement') ||
+                  extraction.job_role;
+
+    const sheetType = isJob ? 'placement' : 'card';
+    console.log(`Smart mapping: Detected as ${sheetType}`);
+    
+    await appendToSheet(extraction, sheetType);
 
     res.json({ 
       id, 
       extraction, 
       imagePath, 
-      sheetUrl: process.env.SHEET_CARDS_VIEW_URL 
+      sheetUrl: isJob ? process.env.SHEET_VIEW_URL : process.env.SHEET_CARDS_VIEW_URL 
     });
   } catch (error) {
     console.error("Card Analysis error:", error);

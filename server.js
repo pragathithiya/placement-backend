@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -7,7 +9,6 @@ const fs = require('fs');
 const { Groq } = require('groq-sdk');
 const { getDb } = require('./db');
 const { appendToSheet } = require('./googleSheets');
-require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -78,15 +79,19 @@ const CARD_SYSTEM_INSTRUCTIONS = `Analyze this Registration Card or Visiting Car
   "phone": "string",
   "website": "string",
   "address": "string",
-  "card_type": "Registration" | "Visiting"
+  "card_type": "Registration" | "Visiting",
+  "others": "string"
 }
 
 CRITICAL RULES:
-1. Extract the person's name, their designation/role, and the company they represent.
-2. Ensure phone and email are captured accurately.
-3. Capture the FULL address as found on the card. Do not omit street details or city names.
-4. Determine if it is a "Registration" card or a "Visiting" card.
-5. Return ONLY the JSON object. No conversation.`;
+1. 100% ENGLISH ONLY: Every value in the JSON MUST be in English. NO TAMIL CHARACTERS.
+2. NAME EXTRACTION (HIGHEST PRIORITY): You MUST extract all names (Owner, Manager, etc.) into the "name" field. If there are multiple, separate with a comma. DO NOT leave "name" blank if there is a name on the card. DO NOT put these names in the "others" field.
+3. MULTIPLE PHONES: Capture ALL phone numbers found on the card. Separate with a comma.
+4. ADDRESS ACCURACY: Translate Tamil place names precisely as they sound. Example: "சீர்காழி" -> "Sirkazhi".
+5. TOP CORNER NAMES: Look for names next to "உரிமை" (Owner), "உரிமையாளர்" (Owner), "நிர்வாகி" (Manager), or "மேலாளர்" (Manager) in the top corners.
+6. CARD TYPE: Business cards are always "Visiting".
+7. ZERO DATA LOSS: Include extra services (like "24 Hours Service") in "others". DO NOT put the person's name here.
+8. Return ONLY the JSON object. No conversation.`;
 
 // --- ROUTES ---
 
@@ -95,6 +100,7 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
   try {
     const file = req.file;
     const rawText = req.body.text;
+    const scannedBy = req.body.scanned_by || "Unknown";
 
     if (!file && !rawText) {
       return res.status(400).json({ error: "No file or text provided" });
@@ -130,6 +136,7 @@ app.post('/api/analyze', upload.single('file'), async (req, res) => {
     let content = completion.choices[0]?.message?.content || "{}";
     content = content.replace(/```json\n?|```/g, "").trim();
     const extraction = JSON.parse(content);
+    extraction.scanned_by = scannedBy;
     const companyName = extraction.company_name || extraction.company || "Unknown";
 
     const db = getDb();
@@ -153,6 +160,7 @@ app.post('/api/analyze-card', upload.single('file'), async (req, res) => {
   try {
     const file = req.file;
     const rawText = req.body.text;
+    const scannedBy = req.body.scanned_by || "Unknown";
 
     if (!file && !rawText) {
       return res.status(400).json({ error: "No card image or text provided" });
@@ -188,25 +196,26 @@ app.post('/api/analyze-card', upload.single('file'), async (req, res) => {
     let content = completion.choices[0]?.message?.content || "{}";
     content = content.replace(/```json\n?|```/g, "").trim();
     const extraction = JSON.parse(content);
+    extraction.scanned_by = scannedBy;
 
     // Append to Google Sheets
     console.log("Extraction complete, checking type...");
-    
+
     // Smart Detection: If the user scanned a Job Poster in the Card route
-    const isJob = extraction.card_type?.toLowerCase().includes('job') || 
-                  extraction.card_type?.toLowerCase().includes('placement') ||
-                  extraction.job_role;
+    const isJob = extraction.card_type?.toLowerCase().includes('job') ||
+      extraction.card_type?.toLowerCase().includes('placement') ||
+      extraction.job_role;
 
     const sheetType = isJob ? 'placement' : 'card';
     console.log(`Smart mapping: Detected as ${sheetType}`);
-    
+
     await appendToSheet(extraction, sheetType);
 
-    res.json({ 
-      id, 
-      extraction, 
-      imagePath, 
-      sheetUrl: isJob ? process.env.SHEET_VIEW_URL : process.env.SHEET_CARDS_VIEW_URL 
+    res.json({
+      id,
+      extraction,
+      imagePath,
+      sheetUrl: isJob ? process.env.SHEET_VIEW_URL : process.env.SHEET_CARDS_VIEW_URL
     });
   } catch (error) {
     console.error("Card Analysis error:", error);

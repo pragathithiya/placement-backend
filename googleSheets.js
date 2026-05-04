@@ -37,7 +37,8 @@ async function appendToSheet(data, type = 'placement') {
         "MODE": data.mode || "",
         "SKILLS": data.skills || "",
         "HR NAME": data.hr_name || "",
-        "PHONE NUMBER": data.hr_phone ? `'${data.hr_phone}` : ""
+        "PHONE NUMBER": data.hr_phone ? `'${data.hr_phone}` : "",
+        "USER NAME": data.scanned_by || "Admin"
       };
     } else {
       // ORDER FOR CARDS (MATCHING YOUR SCREENSHOT):
@@ -51,7 +52,8 @@ async function appendToSheet(data, type = 'placement') {
         "PHONE NO": data.phone ? `'${data.phone}` : "",
         "WEBSITE": data.website || "",
         "ADDRESS": data.address || "",
-        "CARD TYPE": data.card_type || ""
+        "CARD TYPE": data.scanned_by || "Admin",
+        "OTHERS": data.others || ""
       };
     }
 

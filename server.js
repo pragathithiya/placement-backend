@@ -54,6 +54,7 @@ const SYSTEM_INSTRUCTIONS = `Analyze this Job Description or Visiting Card and r
   "skills": "string (key technical skills required)",
   "hr_name": "string",
   "hr_phone": "string",
+  "hr_email": "string",
   "experience": "string",
   "qualification": "string"
 }

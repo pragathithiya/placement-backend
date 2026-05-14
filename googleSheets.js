@@ -38,7 +38,8 @@ async function appendToSheet(data, type = 'placement') {
         "SKILLS": data.skills || "",
         "HR NAME": data.hr_name || "",
         "PHONE NUMBER": data.hr_phone ? `'${data.hr_phone}` : "",
-        "USER NAME": data.scanned_by || "Admin"
+        "USER NAME": data.scanned_by || "Admin",
+        "EMAIL": data.hr_email || ""
       };
     } else {
       // ORDER FOR CARDS (MATCHING YOUR SCREENSHOT):
